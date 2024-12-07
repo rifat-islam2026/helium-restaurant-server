@@ -6,12 +6,12 @@ const app = express()
 const port = process.env.PORT || 5000
 
 // Middleware
-app.use(cors( {
-    origin: [
-      "http://localhost:5173",
-    ],
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+  ],
   credentials: true,
-  }))
+}))
 app.use(express.json())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kkyxc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -33,20 +33,20 @@ async function run() {
     const foodsCollection = client.db('heliumRestaurant').collection('foods');
     const purchaseCollection = client.db('heliumRestaurant').collection('purchase');
     const galleryCollection = client.db('heliumRestaurant').collection('gallery');
-    
+
     // get alls foods
     app.get('/foods', async (req, res) => {
       const cursor = await foodsCollection.find().toArray()
       res.send(cursor)
     })
     // insert a food item
-     app.post('/foods', async (req, res) => {
+    app.post('/foods', async (req, res) => {
       const foodData = req.body
-       console.log(foodData)
+      console.log(foodData)
       const result = await foodsCollection.insertOne(foodData)
       res.send(result)
     })
-    // get a single food
+    // get a single food with: _id
     app.get('/food/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -71,6 +71,30 @@ async function run() {
       console.log(galleryDoc)
       const result = await galleryCollection.insertOne(galleryDoc)
       res.send(result)
+    })
+    // get my adding food with: email
+    app.get('/my-added-foods/:email', async (req, res) => {
+      const email = req.params.email;
+      console.log(email)
+      const query = { email: email };
+      const result = await foodsCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    app.put('/update/:id', async (req, res) => {
+      const updateData = req.body;
+      const id = req.params.id;
+      console.log(updateData)
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...updateData 
+        },
+      };
+      const result = await foodsCollection.updateOne(filter, updateDoc, options);
+      res.send(result)
+
     })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
