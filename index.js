@@ -39,6 +39,13 @@ async function run() {
       const cursor = await foodsCollection.find().toArray()
       res.send(cursor)
     })
+    // insert a food item
+     app.post('/foods', async (req, res) => {
+      const foodData = req.body
+       console.log(foodData)
+      const result = await foodsCollection.insertOne(foodData)
+      res.send(result)
+    })
     // get a single food
     app.get('/food/:id', async (req, res) => {
       const id = req.params.id;
