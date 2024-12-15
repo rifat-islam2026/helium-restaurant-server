@@ -24,7 +24,6 @@ app.use(cookieParser());
 // verify jwt middleware
 const verifyToken = (req, res, next) => {
   const token = req.cookies.token;
-  console.log(token);
   if (!token) {
     return res.status(401).send({ message: "unauthorized access" });
   }
@@ -34,7 +33,6 @@ const verifyToken = (req, res, next) => {
         console.log(err);
         return res.status(401).send({ message: "unauthorized access" });
       }
-      console.log(decoded);
       req.user = decoded;
       next();
     });
@@ -58,17 +56,12 @@ async function run() {
     // await client.connect();
 
     const foodsCollection = client.db("heliumRestaurant").collection("foods");
-    const purchaseCollection = client
-      .db("heliumRestaurant")
-      .collection("purchase");
-    const galleryCollection = client
-      .db("heliumRestaurant")
-      .collection("gallery");
+    const purchaseCollection = client.db("heliumRestaurant").collection("purchase");
+    const galleryCollection = client.db("heliumRestaurant").collection("gallery");
 
     // jwt generate
     app.post("/jwt", async (req, res) => {
       const user = req.body;
-      console.log(user);
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "7d",
       });
@@ -88,44 +81,70 @@ async function run() {
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
-    // get alls foods
+    // get alls foods data for pagination
+    app.get("/all-foods", async (req, res) => {
+      const size = parseInt(req.query.size)
+      const page = parseInt(req.query.page) - 1;
+      const filter = req.query.filter;
+      let query = {};
+      if (filter) {
+        query = { foodCategory: filter }
+      }
+      console.log(page, size)
+      const cursor = await foodsCollection
+        .find(query)
+        .limit(size)
+        .skip(page * size)
+        .toArray();
+      res.send(cursor);
+    });
+    // get foods data form db 
     app.get("/foods", async (req, res) => {
       const cursor = await foodsCollection.find().toArray();
       res.send(cursor);
     });
+    // get all foods data count form db
+    app.get('/foods-count', async (req, res) => {
+      const filter = req.query.filter;
+      let query = {};
+      if (filter) {
+        query = { foodCategory: filter }
+      }
+      const count = await foodsCollection.countDocuments(query);
+      res.send({ count: count })
+    })
     // insert a food item
-    app.post("/foods", async (req, res) => {
+    app.post("/food", async (req, res) => {
       const foodData = req.body;
       const result = await foodsCollection.insertOne(foodData);
       res.send(result);
     });
-    // get a single food
+    // get a single food data form db
     app.get("/food/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await foodsCollection.findOne(query);
       res.send(result);
     });
-    // insert a food purchase data
+    // insert a food purchase data form db
     app.post("/purchase", async (req, res) => {
       const purchaseDoc = req.body;
-      console.log(purchaseDoc)
       const result = await purchaseCollection.insertOne(purchaseDoc);
       res.send(result);
     });
-    // get a gallery data
+    // get a gallery data form db
     app.get("/gallery", async (req, res) => {
       const cursor = await galleryCollection.find().toArray();
       res.send(cursor);
     });
-    // insert a gallery data
+    // insert a gallery data form db
     app.post("/gallery", async (req, res) => {
       const galleryDoc = req.body;
       const result = await galleryCollection.insertOne(galleryDoc);
       res.send(result);
     });
-    // get alls foods with specific user
-    app.get("/my-added-foods/:email", verifyToken,async (req, res) => {
+    // get alls foods with specific user data form db
+    app.get("/my-added-foods/:email", verifyToken, async (req, res) => {
       const tokenEmail = req.user.email;
       const email = req.params.email;
       if (tokenEmail !== email) {
@@ -135,9 +154,9 @@ async function run() {
       const result = await foodsCollection.find(query).toArray();
       res.send(result);
     });
-    // get alls purchase data with specific user
-    app.get("/purchase/:email",verifyToken, async (req, res) => {
-     const tokenEmail = req.user.email;
+    // get alls purchase data with specific user data form db
+    app.get("/purchase/:email", verifyToken, async (req, res) => {
+      const tokenEmail = req.user.email;
       const email = req.params.email;
       if (tokenEmail !== email) {
         return res.status(403).send({ message: "forbidden access" });
@@ -146,7 +165,7 @@ async function run() {
       const result = await purchaseCollection.find(query).toArray();
       res.send(result);
     });
-    // update a food
+    // update a food data form db
     app.put("/update/:id", async (req, res) => {
       const updateData = req.body;
       const id = req.params.id;
@@ -164,7 +183,7 @@ async function run() {
       );
       res.send(result);
     });
-    // delete a my purchase food
+    // delete a my purchase food form db
     app.delete("/delete/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
